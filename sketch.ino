@@ -3,49 +3,49 @@
 #include <DHT.h>
 #include <RTClib.h>
 #include <WiFi.h>
-#include <WiFiClientSecure.h>  // שינוי מ-WiFiClient ל-WiFiClientSecure
+#include <WiFiClientSecure.h>  
 #include <PubSubClient.h>
 #include <ArduinoJson.h>
 
-// הגדרת חיבורים
-#define DHTPIN 4         // חיבור החיישן ל-GPIO 4
-#define DHTTYPE DHT22    // סוג החיישן
-#define EC_SENSOR_PIN 34 // פין אנלוגי לחיישן EC (מדומה כפוטנציומטר)
-#define PH_SENSOR_PIN 35 // פין אנלוגי לחיישן PH (מדומה כפוטנציומטר)
+// Connection definitions
+#define DHTPIN 4         // Connecting the sensor to GPIO 4
+#define DHTTYPE DHT22    // Temperature sensor
+#define EC_SENSOR_PIN 34 // Analog pin for EC sensor (simulated as potentiometer)
+#define PH_SENSOR_PIN 35 // Analog pin for PH sensor (simulated as potentiometer)
 
-// הגדרת פיני נוריות (LEDs)
+// LED pin definitions
 int leds[] = {13, 12, 14, 27, 26, 25, 33, 32};
-int numLeds = sizeof(leds) / sizeof(leds[0]); // מספר הנוריות
+int numLeds = sizeof(leds) / sizeof(leds[0]); // Number of LEDs
 
-// הגדרות WiFi
-const char* ssid = "Wokwi-GUEST";         // שם הרשת שלך
-const char* password = "";  // סיסמת הרשת שלך
+// WiFi settings
+const char* ssid = "Wokwi-GUEST";         // Your network name
+const char* password = "";  // Your network password
 
-// הגדרות MQTT מאובטח
-const char* mqtt_server = "broker.hivemq.com";  // שרת MQTT מאובטח
-const int mqtt_port = 8883;  // פורט TLS/SSL רגיל ל-MQTT
-const char* mqtt_user = "";           // שם משתמש MQTT (אופציונלי)
-const char* mqtt_password = "";       // סיסמת MQTT (אופציונלי)
-const char* mqtt_client_id = "ESP32SecureMQTT";  // שם לקוח
+// Secure MQTT settings
+const char* mqtt_server = "broker.hivemq.com";  // Secure MQTT server
+const int mqtt_port = 8883;  // Regular TLS/SSL port for MQTT
+const char* mqtt_user = "";           // MQTT username (optional)
+const char* mqtt_password = "";       // MQTT password (optional)
+const char* mqtt_client_id = "";  // Client name
 
-// נושאי MQTT
+// MQTT topics
 const char* topic_sensor_data = "esp32/sensor_data";
 const char* topic_status = "esp32/status";
 
-// משתנים גלובליים
+// Global variables
 unsigned long lastMqttPublishTime = 0;
-const long mqttPublishInterval = 10000;  // פרסום כל 10 שניות
+const long mqttPublishInterval = 10000;  
 
-// אובייקטים
-DHT dht(DHTPIN, DHTTYPE);                // יצירת אובייקט DHT
-LiquidCrystal_I2C lcd(0x27, 20, 4);      // יצירת אובייקט LCD
-RTC_DS1307 rtc;                           // יצירת אובייקט למודול RTC
-WiFiClientSecure espClient;               // יצירת אובייקט WiFi מאובטח
-PubSubClient mqttClient(espClient);       // יצירת אובייקט MQTT קליינט
+// Objects
+DHT dht(DHTPIN, DHTTYPE);                // Create DHT object
+LiquidCrystal_I2C lcd(0x27, 20, 4);      // Create LCD object
+RTC_DS1307 rtc;                           // Create RTC module object
+WiFiClientSecure espClient;               // Create secure WiFi object
+PubSubClient mqttClient(espClient);       // Create MQTT client object
 
 void setup_wifi() {
   delay(10);
-  // חיבור לרשת WiFi
+  // Connect to WiFi network
   Serial.println();
   Serial.print("Connecting to ");
   Serial.println(ssid);
@@ -91,8 +91,8 @@ void setup_wifi() {
 }
 
 void setup_secure_mqtt() {
-  // הגדרת מצב לא מאובטח - מצפין תעבורה אך לא מאמת את השרת
-  // זו אפשרות פשוטה יותר עבור שירות ציבורי כמו HiveMQ
+  // Setting insecure mode - encrypts traffic but doesn't verify the server
+  // This is a simpler option for a public service like HiveMQ
   espClient.setInsecure();
   
   Serial.println("SSL/TLS configured in insecure mode");
@@ -105,7 +105,7 @@ void setup_secure_mqtt() {
 }
 
 void reconnect_mqtt() {
-  // התחברות לשרת MQTT מאובטח
+  // Connecting to secure MQTT server
   if (!mqttClient.connected()) {
     Serial.print("Attempting MQTT TLS connection...");
     lcd.clear();
@@ -114,17 +114,16 @@ void reconnect_mqtt() {
     lcd.setCursor(0, 1);
     lcd.print("with TLS...");
     
-    // ניסיון התחברות
+    // Connection attempt
     if (mqttClient.connect(mqtt_client_id, mqtt_user, mqtt_password)) {
       Serial.println("connected");
       lcd.setCursor(0, 2);
       lcd.print("Connected!");
       
-      // פרסום הודעת סטטוס
+      // Publishing status message
       mqttClient.publish(topic_status, "ESP32 secure sensor node online");
       
-      // הרשמה לנושאים (אם יש צורך לקבל פקודות)
-      // mqttClient.subscribe("esp32/commands");
+
       
       delay(1000);
     } else {
@@ -141,7 +140,7 @@ void reconnect_mqtt() {
 }
 
 void callback(char* topic, byte* payload, unsigned int length) {
-  // פונקציה זו מופעלת כאשר מתקבלת הודעה מנושא שהרשמנו אליו
+  // This function is called when a message is received from a topic we subscribed to
   Serial.print("Message arrived [");
   Serial.print(topic);
   Serial.print("] ");
@@ -152,23 +151,23 @@ void callback(char* topic, byte* payload, unsigned int length) {
   }
   Serial.println(message);
   
-  // כאן אפשר להוסיף לוגיקה לטיפול בפקודות שמתקבלות
+  // Here you can add logic to handle received commands
 }
 
 void setup() {
-  Serial.begin(115200); // התחלת חיבור סידורי
+  Serial.begin(115200); // Start serial connection
 
-  dht.begin();  // אתחול חיישן DHT
-  lcd.init();   // אתחול LCD
+  dht.begin();  // Initialize DHT sensor
+  lcd.init();   // Initialize LCD
   lcd.backlight(); 
 
-  // אתחול של הנוריות
+  // Initialize LEDs
   for (int i = 0; i < numLeds; i++) {
     pinMode(leds[i], OUTPUT);
   }
 
   if (!rtc.begin()) {
-    Serial.println("לא ניתן לאתחל את ה-RTC");
+    Serial.println("Cannot initialize RTC");
     while (1);
   }
 
@@ -176,13 +175,13 @@ void setup() {
   lcd.print("System initializing");
   delay(1000);
   
-  // הגדרת חיבור WiFi
+  // Setup WiFi connection
   setup_wifi();
   
-  // הגדרת אבטחת SSL/TLS
+
   setup_secure_mqtt();
   
-  // הגדרת שרת MQTT מאובטח וקולבק
+  // Setup secure MQTT server and callback
   mqttClient.setServer(mqtt_server, mqtt_port);
   mqttClient.setCallback(callback);
   
@@ -196,14 +195,14 @@ void setup() {
 }
 
 void publish_sensor_data(float temp, float hum, float ec, float ph) {
-  // יצירת JSON עם נתוני החיישנים
+  // Create JSON with sensor data
   StaticJsonDocument<256> doc;
   doc["temperature"] = temp;
   doc["humidity"] = hum;
   doc["ec"] = ec;
   doc["ph"] = ph;
   
-  // הוספת מידע על זמן
+  // Add time information
   DateTime now = rtc.now();
   char timeStr[20];
   sprintf(timeStr, "%02d:%02d:%02d", now.hour(), now.minute(), now.second());
@@ -212,7 +211,7 @@ void publish_sensor_data(float temp, float hum, float ec, float ph) {
   char jsonBuffer[256];
   serializeJson(doc, jsonBuffer);
   
-  // שליחת הנתונים ל-MQTT
+  // Send data to MQTT
   if (mqttClient.publish(topic_sensor_data, jsonBuffer)) {
     Serial.println("MQTT data published successfully");
     lcd.setCursor(0, 3);
@@ -225,34 +224,34 @@ void publish_sensor_data(float temp, float hum, float ec, float ph) {
 }
 
 void loop() {
-  // בדיקת חיבור לשרת MQTT
+  // Check connection to MQTT server
   if (WiFi.status() == WL_CONNECTED) {
     if (!mqttClient.connected()) {
       reconnect_mqtt();
     }
     mqttClient.loop();
   } else {
-    // נסה להתחבר מחדש ל-WiFi אם החיבור נפל
+    // Try to reconnect to WiFi if connection is lost
     setup_wifi();
   }
 
-  // קריאת נתונים מהחיישן DHT
+  // Read data from DHT sensor
   float temp = dht.readTemperature();
   float hum = dht.readHumidity();
 
-  // קריאת נתונים מחיישן EC
+  // Read data from EC sensor
   int ecReading = analogRead(EC_SENSOR_PIN);
-  float ecVoltage = ecReading * (3.3 / 4095.0);  // ESP32 משתמש ברזולוציה של 12 ביט (0-4095)
-  float ecValue = ecVoltage * 1000;  // המרת מתח לערך EC (הערכה גסה, תלוי בחיישן)
+  float ecVoltage = ecReading * (3.3 / 4095.0);  // ESP32 uses 12-bit resolution (0-4095)
+  float ecValue = ecVoltage * 1000;  // Convert voltage to EC value (rough estimate, depends on sensor)
 
-  // קריאת נתונים מחיישן pH
+  // Read data from pH sensor
   int phReading = analogRead(PH_SENSOR_PIN);
-  float phVoltage = phReading * (3.3 / 4095.0);  // ESP32 משתמש ברזולוציה של 12 ביט (0-4095)
-  float phValue = 3.5 * phVoltage + 0.5;  // המרת מתח לערך pH (הערכה גסה, דורש כיול)
+  float phVoltage = phReading * (3.3 / 4095.0);  // ESP32 uses 12-bit resolution (0-4095)
+  float phValue = 3.5 * phVoltage + 0.5;  // Convert voltage to pH value (rough estimate, requires calibration)
 
-  // קריאת זמן מה-RTC
+  // Read time from RTC
   DateTime now = rtc.now();
-  // הצגת השעה בשורה הראשונה
+  // Display time in first row
   lcd.setCursor(0, 0);
   lcd.print("Time: ");
   lcd.print(now.hour());
@@ -263,19 +262,19 @@ void loop() {
   if (now.second() < 10) lcd.print("0");
   lcd.print(now.second());
 
-  // הצגת נתוני EC
+  // Display EC data
   lcd.setCursor(0, 1);
   lcd.print("EC: ");
   lcd.print(ecValue);
   lcd.print(" mS/cm   ");
 
-  // הצגת נתוני pH
-  lcd.setCursor(10, 1); // מיקום מותאם על הצג
+  // Display pH data
+  lcd.setCursor(10, 1); // Adjusted position on display
   lcd.print("PH: ");
   lcd.print(phValue);
   lcd.print("  ");
 
-  // הצגת נתוני טמפרטורה ולחות
+  // Display temperature and humidity data
   if (isnan(temp) || isnan(hum)) {
     lcd.setCursor(0, 2);
     lcd.print("Failed to read DHT");
@@ -285,14 +284,14 @@ void loop() {
     lcd.print(temp);
     lcd.print(" C  ");
     
-    // הצגת לחות בשורה השלישית או בהמשך שורה 2
+    // Display humidity in third row or continuation of row 2
     lcd.setCursor(15, 2);
     lcd.print("H:");
     lcd.print(hum);
     lcd.print("%");
   }
 
-  // הדפסת נתונים לסידורי
+  // Print data to serial
   Serial.print("EC Voltage: ");
   Serial.print(ecVoltage);
   Serial.print("V | EC Value: ");
@@ -304,10 +303,10 @@ void loop() {
   Serial.print("V | pH Value: ");
   Serial.println(phValue);
 
-  // הפעלת הנוריות לפי טמפרטורה
+  // Activate LEDs based on temperature
   activateLedsBasedOnTemperature(temp);
 
-  // שליחת נתונים ל-MQTT בפרקי זמן קבועים
+  // Send data to MQTT at fixed intervals
   unsigned long currentMillis = millis();
   if (currentMillis - lastMqttPublishTime >= mqttPublishInterval) {
     lastMqttPublishTime = currentMillis;
@@ -317,33 +316,33 @@ void loop() {
     }
   }
 
-  delay(2000);  // המתנה לפני קריאה נוספת
+  delay(2000);  // Wait before next reading
 }
 
 void activateLedsBasedOnTemperature(float temp) {
-  // כיבוי כל הנוריות לפני הפעלת הנוריות המתאימות
+  // Turn off all LEDs before activating appropriate ones
   for (int i = 0; i < numLeds; i++) {
     digitalWrite(leds[i], LOW);
   }
   
-  // הפעלת נוריות על פי טמפרטורה - מירוק לאדום
+  // Activate LEDs based on temperature - from green to red
   int numLedsToLight = 0;
   
   if (temp < 15) {
-    numLedsToLight = 1;         // ירוק - קר מאוד
+    numLedsToLight = 1;         // Green - very cold
   } else if (temp >= 15 && temp < 24) {
-    numLedsToLight = 2;         // ירוק עם קצת צהוב - קר
+    numLedsToLight = 2;         // Green with some yellow - cold
   } else if (temp >= 24 && temp < 32) {
-    numLedsToLight = 3;         // צהוב - טמפרטורה נוחה
+    numLedsToLight = 3;         // Yellow - comfortable temperature
   } else if (temp >= 32 && temp < 40) {
-    numLedsToLight = 4;         // צהוב עם קצת אדום - חם
+    numLedsToLight = 4;         // Yellow with some red - hot
   } else if (temp >= 40 && temp < 48) {
-    numLedsToLight = 5;         // אדום - חם מאוד  
+    numLedsToLight = 5;         // Red - very hot  
   } else {
-    numLedsToLight = numLeds;   // כל הנוריות - חם מאוד מאוד
+    numLedsToLight = numLeds;   // All LEDs - extremely hot
   }
   
-  // הדלקת הנוריות המתאימות
+  // Turn on appropriate LEDs
   for (int i = 0; i < numLedsToLight; i++) {
     digitalWrite(leds[i], HIGH);
   }
